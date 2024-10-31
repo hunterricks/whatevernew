@@ -6,11 +6,31 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: "https://b0d7eb8c2c8928099cb11102e7f4ac33@o4508219492466688.ingest.us.sentry.io/4508219492597760",
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  // Performance Monitoring
+  tracesSampleRate: 0.5, // Sample 50% of requests for edge functions
+  
+  // Auth-specific settings
+  beforeSend(event) {
+    // Remove sensitive data
+    if (event.request?.headers) {
+      const sanitizedHeaders = { ...event.request.headers };
+      delete sanitizedHeaders['authorization'];
+      delete sanitizedHeaders['cookie'];
+      event.request.headers = sanitizedHeaders;
+    }
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+    // Add edge context
+    event.tags = {
+      ...event.tags,
+      'runtime': 'edge',
+      'auth.provider': 'auth0',
+    };
+
+    return event;
+  },
+
+  // Environment
+  environment: process.env.NEXT_PUBLIC_ENV || 'development',
 });

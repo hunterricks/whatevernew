@@ -5,24 +5,31 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: "https://b0d7eb8c2c8928099cb11102e7f4ac33@o4508219492466688.ingest.us.sentry.io/4508219492597760",
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  
+  // Performance Monitoring
+  tracesSampleRate: 1.0,
+  
+  // Session Replay
+  replaysSessionSampleRate: 0.1, // Sample 10% of sessions
+  replaysOnErrorSampleRate: 1.0, // Sample 100% of sessions with errors
 
-  // Add optional integrations for additional features
-  integrations: [
-    Sentry.replayIntegration(),
-  ],
+  // Auth-specific settings
+  beforeSend(event) {
+    // Remove sensitive data
+    if (event.request?.cookies) {
+      event.request.cookies = '[Filtered]';
+    }
+    
+    // Add authentication context
+    event.tags = {
+      ...event.tags,
+      'auth.provider': 'auth0',
+    };
+    
+    return event;
+  },
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
-
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
-
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Environment
+  environment: process.env.NEXT_PUBLIC_ENV || 'development',
 });
