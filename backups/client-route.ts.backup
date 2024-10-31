@@ -1,0 +1,39 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { auth } from '@auth0/nextjs-auth0';
+import { dbConnect } from '@/lib/mysql';
+
+export async function POST(request: Request) {
+  try {
+    await dbConnect();
+    
+    const { user: auth0User } = await auth() || {};
+    const session = await getServerSession();
+
+    console.log('Debug - Auth0 User:', auth0User); // Debug log
+    console.log('Debug - Session:', session); // Debug log
+    
+    if (!auth0User) {
+      return NextResponse.json(
+        { message: 'Unauthorized - No auth0 user found' },
+        { status: 401 }
+      );
+    }
+
+    if (auth0User.role !== 'client') {
+      return NextResponse.json(
+        { message: 'Unauthorized - Client access only' },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+    
+  } catch (error) {
+    console.error('Client onboarding error:', error);
+    return NextResponse.json(
+      { message: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}

@@ -32,3 +32,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# i18n
+/public/locales/**/*.missing.json
+
+# Logging
+/logs
+*.log
+
+# Sentry
+.sentryclirc
+sentry.properties
+
+# Environment
+.env*.local

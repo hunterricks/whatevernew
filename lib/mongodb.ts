@@ -9,15 +9,12 @@ declare global {
 
 const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
 
-if (isWebContainer) {
-  // In web container mode, we do not connect to MongoDB
-  async function dbConnect() {
+async function dbConnect() {
+  if (isWebContainer) {
     console.log('Running in web container mode. Skipping MongoDB connection.');
     return null;
   }
 
-  export default dbConnect;
-} else {
   const MONGODB_URI = process.env.MONGODB_URI;
 
   if (!MONGODB_URI) {
@@ -30,32 +27,30 @@ if (isWebContainer) {
     cached = global.mongooseCache = { conn: null, promise: null };
   }
 
-  async function dbConnect() {
-    if (cached?.conn) {
-      return cached.conn;
-    }
-
-    if (!cached?.promise) {
-      const opts = {
-        bufferCommands: false,
-      };
-
-      cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-        console.log('Connected to MongoDB');
-        return mongoose.connection;
-      });
-    }
-
-    try {
-      cached.conn = await cached.promise;
-    } catch (e) {
-      cached.promise = null;
-      console.error('MongoDB connection error:', e);
-      throw e;
-    }
-
+  if (cached?.conn) {
     return cached.conn;
   }
 
-  export default dbConnect;
+  if (!cached?.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log('Connected to MongoDB');
+      return mongoose.connection;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('MongoDB connection error:', e);
+    throw e;
+  }
+
+  return cached.conn;
 }
+
+export default dbConnect;

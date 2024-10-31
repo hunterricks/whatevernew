@@ -1,30 +1,65 @@
 import mongoose from 'mongoose';
 
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
+  firstName: {
+    type: String,
+    required: true,
+  },
+  lastName: {
+    type: String,
+    required: true,
+  },
   name: {
     type: String,
-    required: [true, 'Please provide a name'],
-    maxlength: [60, 'Name cannot be more than 60 characters'],
+    required: true,
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
+    required: true,
     unique: true,
-    lowercase: true,
-    trim: true,
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
-    minlength: [8, 'Password must be at least 8 characters long'],
+    required: function() {
+      return this.provider === 'email';
+    },
   },
-  fcmTokens: [{
+  role: {
     type: String,
-  }],
+    enum: ['client', 'service_provider'],
+    required: true,
+  },
+  provider: {
+    type: String,
+    enum: ['email', 'google', 'apple'],
+    required: true,
+  },
+  country: {
+    type: String,
+    required: true,
+  },
+  emailUpdates: {
+    type: Boolean,
+    default: true,
+  },
+  onboardingCompleted: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
     type: Date,
     default: Date.now,
   },
 });
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+// Update the updatedAt timestamp before saving
+userSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+export default mongoose.models.User || mongoose.model('User', userSchema);

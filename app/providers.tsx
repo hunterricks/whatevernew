@@ -1,54 +1,33 @@
-"use client";
+'use client';
 
 import { ThemeProvider } from "next-themes";
-import { UserProvider } from '@auth0/nextjs-auth0/client';
-import { useState, useEffect } from 'react';
-import { Toaster } from "@/components/ui/toaster";
-import { EnvProvider } from '@/lib/providers/env-provider';
-import dynamic from 'next/dynamic';
-import { LoadingHeader } from '@/components/LoadingHeader';
-
-const Header = dynamic(() => import('@/components/Header'), {
-  ssr: false,
-  loading: () => <LoadingHeader />
-});
-
-const Footer = dynamic(() => import('@/components/Footer'), { 
-  ssr: false 
-});
-
-const MobileNavigation = dynamic(
-  () => import('@/components/MobileNavigation').then(mod => mod.MobileNavigation), 
-  { ssr: false }
-);
+import { Toaster } from "sonner";
+import { Auth0Provider } from "@auth0/auth0-react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
-    <EnvProvider>
-      <UserProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-1 pt-16">
-              {mounted ? children : null}
-            </main>
-            <Footer />
-            <MobileNavigation />
-          </div>
-          <Toaster />
-        </ThemeProvider>
-      </UserProvider>
-    </EnvProvider>
+    <Auth0Provider
+      domain={process.env.NEXT_PUBLIC_AUTH0_DOMAIN!}
+      clientId={process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!}
+      authorizationParams={{
+        redirect_uri: `${origin}/api/auth/callback`,
+        scope: "openid profile email read:roles update:roles",
+        audience: `https://${process.env.NEXT_PUBLIC_AUTH0_DOMAIN}/api/v2/`,
+      }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
+    >
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {children}
+        <Toaster />
+      </ThemeProvider>
+    </Auth0Provider>
   );
 }

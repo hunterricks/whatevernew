@@ -38,7 +38,8 @@
     ],
     "baseUrl": ".",
     "allowImportingTsExtensions": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
   "ts-node": {
     "compilerOptions": {
@@ -53,7 +54,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "lib/db/migrations/*.ts"
+    "lib/db/migrations/*.ts",
+    "types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -1,64 +1,46 @@
-import { withMiddlewareAuthRequired } from '@auth0/nextjs-auth0/edge';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getSession, withMiddlewareAuthRequired } from '@auth0/nextjs-auth0/edge';
+import { loggerMiddleware } from './middleware/logging';
 
-const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
+export default withMiddlewareAuthRequired(async function middleware(req: NextRequest) {
+  // Add logging middleware
+  const loggerRes = await loggerMiddleware(req);
+  if (loggerRes.status !== 200) return loggerRes;
 
-export async function middleware(request: NextRequest) {
-  try {
-    // Allow access to the landing page and auth-related routes without authentication
-    const publicPaths = [
-      '/', 
-      '/login', 
-      '/register',
-      '/register/client',
-      '/register/service-provider',
-      '/client/onboarding',
-      '/service-provider/onboarding',
-      '/terms',
-      '/privacy'
-    ];
-    const path = request.nextUrl.pathname;
+  const res = NextResponse.next();
+  const session = await getSession(req, res);
+  const path = req.nextUrl.pathname;
 
-    if (publicPaths.includes(path)) {
-      return NextResponse.next();
+  // Get user role from session
+  const role = session?.user?.['https://whatever.com/roles']?.[0];
+
+  // Protected routes mapping
+  const protectedRoutes = {
+    '/dashboard/service-provider': ['service_provider'],
+    '/dashboard/client': ['client'],
+    '/service-provider/onboarding': ['service_provider'],
+    '/client/onboarding': ['client'],
+    '/api/service-provider': ['service_provider'],
+    '/api/client': ['client'],
+  };
+
+  // Check if current path is protected
+  for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
+    if (path.startsWith(route) && !allowedRoles.includes(role)) {
+      return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
-
-    if (isWebContainer) {
-      return NextResponse.next();
-    }
-    
-    // Apply Auth0 middleware for protected routes
-    return withMiddlewareAuthRequired({
-      returnTo: '/login',
-    })(request);
-  } catch (error) {
-    console.error('Middleware error:', error);
-    
-    if (error.code === 'ETIMEDOUT') {
-      return new NextResponse(
-        JSON.stringify({ error: 'Database connection timeout. Please try again.' }),
-        { status: 503 }
-      );
-    }
-    
-    return new NextResponse(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500 }
-    );
   }
-}
+
+  return res;
+});
 
 export const config = {
   matcher: [
     '/dashboard/:path*',
-    '/profile/:path*',
-    '/post-job/:path*',
-    '/browse-jobs/:path*',
-    '/my-jobs/:path*',
-    '/my-proposals/:path*',
-    '/messages/:path*',
-    '/jobs/:path*',
-    '/proposals/:path*',
-  ],
+    '/service-provider/:path*',
+    '/client/:path*',
+    '/api/service-provider/:path*',
+    '/api/client/:path*',
+  ]
 };

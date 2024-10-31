@@ -1,10 +1,10 @@
 import { handleLogout } from '@auth0/nextjs-auth0';
-import { NextRequest } from 'next/server';
 
-export async function GET(request: NextRequest) {
-  const logout = handleLogout({
-    returnTo: '/',
-  });
-
-  return logout(request);
+export async function GET(request: Request) {
+  try {
+    return await handleLogout(request);
+  } catch (error) {
+    console.error('Logout error:', error);
+    return new Response('Logout failed', { status: 500 });
+  }
 }

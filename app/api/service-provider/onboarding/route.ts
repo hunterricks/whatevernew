@@ -1,103 +1,65 @@
 import { NextResponse } from 'next/server';
 import { query, transaction } from '@/lib/mysql';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-
-interface OnboardingData {
-  businessDetails: {
-    licenseNumber?: string;
-    insuranceInfo: string;
-    serviceArea: string;
-    businessStructure: string;
-  };
-  services: {
-    hourlyRate: number;
-    availability: string;
-    primaryServices: string[];
-  };
-  profile: {
-    bio: string;
-  };
-}
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const data = await request.json();
+    console.log('Service Provider registration data:', data);
+
+    // Check if email exists
+    const existingUser = await query(
+      'SELECT id FROM users WHERE email = ?',
+      [data.email]
+    );
+
+    if (Array.isArray(existingUser) && existingUser.length > 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Email already registered',
+        code: 'EMAIL_EXISTS'
+      }, { status: 409 });
+    }
+
+    const userId = uuidv4();
+    const businessProfileId = uuidv4();
     
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const body: OnboardingData = await request.json();
-    const { businessDetails, services, profile } = body;
-
-    // Validate input
-    if (!services.hourlyRate || !services.availability || !services.primaryServices.length) {
-      return NextResponse.json(
-        { message: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    await transaction(async (connection) => {
-      try {
-        // Update service provider profile
-        await connection.execute(`
-          UPDATE service_provider_profiles SET 
-            license_number = ?,
-            insurance_info = ?,
-            service_area = ?,
-            business_structure = ?,
-            hourly_rate = ?,
-            availability = ?,
-            bio = ?,
-            profile_completion = 100,
-            updated_at = CURRENT_TIMESTAMP
-           WHERE user_id = ?`,
-          [
-            businessDetails.licenseNumber || null,
-            businessDetails.insuranceInfo,
-            businessDetails.serviceArea,
-            businessDetails.businessStructure,
-            services.hourlyRate,
-            services.availability,
-            profile.bio,
-            session.user.id
-          ]
-        );
-
-        // Delete existing services first
-        await connection.execute(
-          'DELETE FROM service_provider_services WHERE provider_id = ?',
-          [session.user.id]
-        );
-
-        // Save primary services
-        for (const serviceId of services.primaryServices) {
-          await connection.execute(
-            `INSERT INTO service_provider_services (provider_id, service_id)
-             VALUES (?, ?)`,
-            [session.user.id, serviceId]
-          );
-        }
-      } catch (error) {
-        await connection.rollback();
-        throw error;
+    // Use transaction to create both user and business profile
+    await transaction([
+      {
+        sql: 'INSERT INTO users (id, email, name, activeRole) VALUES (?, ?, ?, ?)',
+        params: [
+          userId,
+          data.email,
+          `${data.firstName} ${data.lastName}`,
+          'service_provider'
+        ]
+      },
+      {
+        sql: 'INSERT INTO business_profiles (id, user_id, business_name, business_type, description) VALUES (?, ?, ?, ?, ?)',
+        params: [
+          businessProfileId,
+          userId,
+          data.businessName || `${data.firstName}'s Business`,
+          data.businessType || 'General Contractor',
+          data.description || 'Professional service provider'
+        ]
       }
-    });
+    ]);
 
     return NextResponse.json({
-      message: 'Profile updated successfully'
+      success: true,
+      message: 'Service Provider registered successfully',
+      userId: userId,
+      businessProfileId: businessProfileId
     });
-
+    
   } catch (error) {
-    console.error('Onboarding error:', error);
-    return NextResponse.json(
-      { message: 'Failed to update profile' },
-      { status: 500 }
-    );
+    console.error('Service Provider registration error:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Registration failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
-} 
+}

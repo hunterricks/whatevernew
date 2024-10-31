@@ -1,138 +1,145 @@
-"use client";
+'use client';
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from 'next/navigation';
-import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth0 } from "@auth0/auth0-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Icons } from "@/components/icons";
 
-export default function Login() {
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login } = useAuth();
-  const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
+export default function LoginPage() {
+  const { loginWithRedirect, loginWithPopup } = useAuth0();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleWebContainerLogin = async (type: 'client' | 'service_provider' | 'both') => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      // Map the type to our mock user types
-      const userType = type === 'both' ? 'dual' : type;
-      
-      // Call the mock auth endpoint
-      const response = await fetch('/api/auth/mock', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      await loginWithRedirect({
+        authorizationParams: {
+          screen_hint: "login",
+          login_hint: email,
+          prompt: "login",
         },
-        body: JSON.stringify({ userType }),
+        appState: {
+          returnTo: "/onboarding",
+        },
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
-      }
-
-      const { user: mockUser } = await response.json();
-      
-      if (!mockUser) {
-        throw new Error('No user data received');
-      }
-
-      // Set the user in auth context
-      await login(mockUser);
-      
-      // Redirect to appropriate dashboard
-      const returnTo = searchParams.get('returnTo');
-      router.push(returnTo || `/dashboard/${mockUser.activeRole}`);
-      
-      toast.success('Logged in successfully');
     } catch (error) {
-      console.error('Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Error during login');
-    } finally {
-      setIsLoading(false);
+      console.error("Login error:", error);
+      toast.error("Login failed. Please try again.");
+      setLoading(false);
     }
   };
 
-  const handleAuth0Login = async () => {
+  const handleSocialLogin = async (connection: string) => {
     try {
-      setIsLoading(true);
-      const returnTo = searchParams.get('returnTo');
-      window.location.href = `/api/auth/login${returnTo ? `?returnTo=${returnTo}` : ''}`;
+      setLoading(true);
+      await loginWithPopup({
+        authorizationParams: {
+          connection,
+          prompt: "select_account",
+        },
+        appState: {
+          returnTo: "/onboarding",
+        },
+      });
     } catch (error) {
-      console.error("Auth0 login error:", error);
-      toast.error("Error during login");
-    } finally {
-      setIsLoading(false);
+      console.error("Social login error:", error);
+      toast.error("Login failed. Please try again.");
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background">
-      <div className="w-full max-w-lg px-4">
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>
-              {isWebContainer 
-                ? "Choose a test account to continue"
-                : "Sign in to your account"
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {searchParams.get('error') && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {searchParams.get('error_description') || 'An error occurred during login'}
-                </AlertDescription>
-              </Alert>
-            )}
+    <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+      <Link
+        href="/"
+        className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back
+      </Link>
 
-            <div className="grid gap-4">
-              {isWebContainer ? (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleWebContainerLogin('client')}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? 'Loading...' : 'Continue as Client'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleWebContainerLogin('service_provider')}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? 'Loading...' : 'Continue as Service Provider'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleWebContainerLogin('both')}
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? 'Loading...' : 'Continue with Both Roles'}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={handleAuth0Login}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? 'Loading...' : 'Continue to Login'}
+      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
+        <div className="absolute inset-0 bg-zinc-900" />
+        <div className="relative z-20 flex items-center text-lg font-medium">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2 h-6 w-6"
+          >
+            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
+          </svg>
+          WHATEVER™
+        </div>
+      </div>
+
+      <div className="lg:p-8">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          <div className="flex flex-col space-y-2 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to your account
+            </p>
+          </div>
+
+          <div className="grid gap-6">
+            <div className="grid gap-2">
+              <form onSubmit={handleEmailSubmit}>
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="w-full mt-2" disabled={loading}>
+                  {loading ? "Loading..." : "Continue"}
                 </Button>
-              )}
+              </form>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleSocialLogin('google-oauth2')}
+                disabled={loading}
+              >
+                <Icons.google className="mr-2 h-4 w-4" />
+                Google
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSocialLogin('apple')}
+                disabled={loading}
+              >
+                <Icons.apple className="mr-2 h-4 w-4" />
+                Apple
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,26 @@
+import { NextResponse } from 'next/server';
+import { query, transaction } from '@/lib/mysql';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { auth } from '@auth0/nextjs-auth0';
+
+export async function POST(request: Request) {
+  try {
+    const { user: auth0User } = await auth();
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    if (!auth0User || auth0User.role !== 'service_provider') {
+      return NextResponse.json(
+        { message: 'Unauthorized - Service Provider access only' },
+        { status: 403 }
+      );
+    }
+
+    // Rest of your existing code...
