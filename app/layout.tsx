@@ -1,6 +1,13 @@
 import { Providers } from './providers';
+import { LayoutWrapper } from './layout-wrapper';
 import './globals.css';
 import type { Metadata, Viewport } from 'next'
+import * as Sentry from '@sentry/nextjs';
+
+// Initialize Sentry in layout
+Sentry.init({
+  environment: process.env.NEXT_PUBLIC_ENV || 'development',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -111,8 +118,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">
-        <Providers>{children}</Providers>
+      <body 
+        className="min-h-screen bg-background font-sans antialiased"
+        data-sentry-release={process.env.NEXT_PUBLIC_SENTRY_RELEASE}
+        data-sentry-environment={process.env.NEXT_PUBLIC_ENV}
+      >
+        <Providers>
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
+        </Providers>
       </body>
     </html>
   );

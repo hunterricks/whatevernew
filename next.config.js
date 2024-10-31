@@ -1,3 +1,4 @@
+const path = require('path');
 const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
@@ -6,19 +7,27 @@ const nextConfig = {
     locales: ['en', 'es-MX', 'pt-BR'],
     defaultLocale: 'en',
   },
-  sentry: {
-    hideSourceMaps: true,
-    tunnelRoute: '/monitoring-tunnel',
+  // Disable webpack caching in development
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = false;
+    }
+    return config;
+  },
+  // Experimental features
+  experimental: {
+    // Disable webpack cache in development
+    webpackBuildWorker: false,
   },
 };
 
-// Wrap your config with Sentry
+// Sentry configuration
 module.exports = withSentryConfig(
   nextConfig,
   {
-    silent: true,
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,
+    silent: true,
   },
   {
     widenClientFileUpload: true,

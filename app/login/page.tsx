@@ -104,7 +104,11 @@ export default function LoginPage() {
                   required
                 />
                 <Button type="submit" className="w-full mt-2" disabled={loading}>
-                  {loading ? "Loading..." : "Continue"}
+                  {loading ? (
+                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    "Continue with Email"
+                  )}
                 </Button>
               </form>
             </div>

@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LogoutButton } from "@/components/LogoutButton";
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -54,7 +54,7 @@ export default function Header() {
             <Link href="/login">Log In</Link>
           </Button>
           <Button asChild>
-            <Link href="/signup">Sign Up</Link>
+            <Link href="/register">Sign Up</Link>
           </Button>
         </>
       )}
@@ -69,7 +69,8 @@ export default function Header() {
       : '/dashboard/client';
   };
 
-  if (!mounted) {
+  // Show loading state if auth is still initializing
+  if (!mounted || isLoading) {
     return (
       <header className="sticky-header animate-pulse">
         <div className="container mx-auto px-4 py-4">
