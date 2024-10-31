@@ -7,7 +7,17 @@ const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
 export async function middleware(request: NextRequest) {
   try {
     // Allow access to the landing page and auth-related routes without authentication
-    const publicPaths = ['/', '/login', '/register', '/register/homeowner', '/register/service-provider'];
+    const publicPaths = [
+      '/', 
+      '/login', 
+      '/register',
+      '/register/client',
+      '/register/service-provider',
+      '/client/onboarding',
+      '/service-provider/onboarding',
+      '/terms',
+      '/privacy'
+    ];
     const path = request.nextUrl.pathname;
 
     if (publicPaths.includes(path)) {
@@ -50,6 +60,5 @@ export const config = {
     '/messages/:path*',
     '/jobs/:path*',
     '/proposals/:path*',
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

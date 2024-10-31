@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -26,264 +26,62 @@ import {
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+import { LoginButton } from "../../components/login-button";
+import { ArrowLeft } from "lucide-react";
 
 const formSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  country: z.string().min(1, "Please select your country"),
+  firstName: z.string().min(2),
+  lastName: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  country: z.string().min(1),
   company: z.string().optional(),
-  projectType: z.string().min(1, "Please select your typical project type"),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: "You must accept the terms and conditions",
   }),
 });
 
-export default function ClientRegistration() {
-  const router = useRouter();
-  const { login } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      country: "",
-      company: "",
-      projectType: "",
-      termsAccepted: false,
-    },
-  });
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('/api/register/client', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...values,
-          name: `${values.firstName} ${values.lastName}`,
-          role: 'client'
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      const data = await response.json();
-
-      if (process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer') {
-        login({
-          id: data.userId,
-          name: `${values.firstName} ${values.lastName}`,
-          email: values.email,
-          roles: ['client'],
-          activeRole: 'client',
-          token: `mock-token-${Date.now()}`,
-        });
-        router.push('/client/onboarding');
-      } else {
-        toast.success("Registration successful! Please log in.");
-        router.push('/login');
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Registration failed. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
+export default function ClientRegisterPage() {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-normal">
-            Sign up to hire talent
-          </CardTitle>
-          <CardDescription>
-            Create your client account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+    <div className="container max-w-md mx-auto space-y-4 p-4">
+      <Link href="/register">
+        <Button variant="ghost" size="sm" className="mb-4">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+      </Link>
 
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">Create Client Account</h1>
+        <p className="text-muted-foreground">Post jobs and hire skilled service providers</p>
+      </div>
+      
+      <div className="space-y-3">
+        <LoginButton 
+          role="client"
+          provider="google"
+          variant="outline"
+          size="lg"
+          className="w-full"
+          label="Sign up with Google"
+        />
+        
+        <LoginButton 
+          role="client"
+          provider="apple"
+          variant="outline"
+          size="lg"
+          className="w-full"
+          label="Sign up with Apple"
+        />
+      </div>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Work Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="john@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="********" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your country" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="US">United States</SelectItem>
-                        <SelectItem value="CA">Canada</SelectItem>
-                        <SelectItem value="GB">United Kingdom</SelectItem>
-                        <SelectItem value="AU">Australia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company Name (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your company name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="projectType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>What type of projects do you typically need?</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="home_improvement">Home Improvement</SelectItem>
-                        <SelectItem value="renovation">Renovation</SelectItem>
-                        <SelectItem value="repair">Repairs & Maintenance</SelectItem>
-                        <SelectItem value="outdoor">Outdoor & Landscaping</SelectItem>
-                        <SelectItem value="commercial">Commercial Projects</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="termsAccepted"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Yes, I understand and agree to the{' '}
-                        <Link href="/terms" className="text-primary hover:underline">
-                          Terms of Service
-                        </Link>
-                        , including the{' '}
-                        <Link href="/terms/user" className="text-primary hover:underline">
-                          User Agreement
-                        </Link>
-                        {' '}and{' '}
-                        <Link href="/privacy" className="text-primary hover:underline">
-                          Privacy Policy
-                        </Link>
-                      </FormLabel>
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Creating account..." : "Create my account"}
-              </Button>
-
-              <div className="text-center">
-                <span className="text-muted-foreground">
-                  Already have an account?{' '}
-                </span>
-                <Link href="/login" className="text-primary hover:underline">
-                  Log In
-                </Link>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      <div className="text-center text-sm text-muted-foreground">
+        Already have an account?{' '}
+        <Link href="/login" className="text-primary hover:underline">
+          Log In
+        </Link>
+      </div>
     </div>
   );
 }
