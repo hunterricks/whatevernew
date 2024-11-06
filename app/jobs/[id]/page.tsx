@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Link from 'next/link';
 import Messaging from '@/components/Messaging';
+import PermissionGuard from '@/components/PermissionGuard';
 
 interface Job {
   _id: string;
@@ -128,33 +129,28 @@ export default function JobPage() {
   if (!job) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{job.title}</h1>
-        <p className="text-muted-foreground mb-4">{job.description}</p>
-        <div className="flex flex-wrap gap-4">
-          <Badge variant="outline">Budget: ${job.budget}</Badge>
-          <Badge variant="outline">Location: {job.location}</Badge>
-          <Badge variant="outline">Timeline: {job.timeline}</Badge>
-          <Badge>{job.status}</Badge>
-        </div>
-      </div>
-
-      <Tabs defaultValue="details" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          {user?.activeRole === 'client' && <TabsTrigger value="proposals">Proposals</TabsTrigger>}
-          {canMessage() && <TabsTrigger value="messages">Messages</TabsTrigger>}
-        </TabsList>
-
+    <div className="container mx-auto px-4 py-8 mt-16">
+      <Tabs defaultValue="details">
         <TabsContent value="details">
           <Card>
             <CardContent className="pt-6">
-              {user?.activeRole === 'service_provider' && job.status === 'open' && !proposal && (
-                <Button asChild>
-                  <Link href={`/jobs/${id}/submit-proposal`}>Submit Proposal</Link>
-                </Button>
-              )}
+              <div className="flex gap-4 mt-6">
+                <PermissionGuard permissions={['client:post_jobs']}>
+                  <Button asChild>
+                    <Link href="/post-job">Post Similar Job</Link>
+                  </Button>
+                </PermissionGuard>
+                
+                <PermissionGuard permissions={['provider:submit_proposals']}>
+                  {job.status === 'open' && (
+                    <Button asChild>
+                      <Link href={`/jobs/${job.id}/submit-proposal`}>
+                        Submit Proposal
+                      </Link>
+                    </Button>
+                  )}
+                </PermissionGuard>
+              </div>
               {proposal && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Your Proposal</h3>
@@ -170,13 +166,13 @@ export default function JobPage() {
           </Card>
         </TabsContent>
 
-        {user?.activeRole === 'client' && (
-          <TabsContent value="proposals">
-            <Card>
-              <CardHeader>
-                <CardTitle>Submitted Proposals</CardTitle>
-              </CardHeader>
-              <CardContent>
+        <TabsContent value="proposals">
+          <Card>
+            <CardHeader>
+              <CardTitle>Submitted Proposals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PermissionGuard permissions={['client:view_proposals']}>
                 <div className="space-y-6">
                   {proposals.map((proposal) => (
                     <Card key={proposal._id}>
@@ -186,11 +182,13 @@ export default function JobPage() {
                             <h4 className="font-semibold">{proposal.serviceProvider.name}</h4>
                             <Badge className="mt-1">{proposal.status}</Badge>
                           </div>
-                          {proposal.status === 'pending' && job.status === 'open' && (
-                            <Button onClick={() => handleAcceptProposal(proposal._id)}>
-                              Accept Proposal
-                            </Button>
-                          )}
+                          <PermissionGuard permissions={['client:manage_contracts']}>
+                            {proposal.status === 'pending' && job.status === 'open' && (
+                              <Button onClick={() => handleAcceptProposal(proposal._id)}>
+                                Accept Proposal
+                              </Button>
+                            )}
+                          </PermissionGuard>
                         </div>
                         <p className="text-muted-foreground mb-4">{proposal.coverLetter}</p>
                         <div className="flex gap-4">
@@ -206,28 +204,10 @@ export default function JobPage() {
                     </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-
-        {canMessage() && (
-          <TabsContent value="messages">
-            <Card>
-              <CardContent className="p-0">
-                <Messaging
-                  jobId={job._id}
-                  otherUserId={user?.activeRole === 'client' 
-                    ? proposal?.serviceProvider._id ?? '' 
-                    : job.postedBy ?? ''}
-                  otherUserName={user?.activeRole === 'client' 
-                    ? proposal?.serviceProvider.name ?? 'service_provider' 
-                    : job.postedByName ?? 'client'}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
+              </PermissionGuard>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

@@ -52,4 +52,4 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
       </CustomErrorBoundary>
     </div>
   );
-} 
+}

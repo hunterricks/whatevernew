@@ -11,10 +11,10 @@ import { useAuth } from "@/lib/auth";
 import { UserCircle } from "lucide-react";
 import type { UserRole } from "@/lib/auth";
 import { useRouter } from 'next/navigation';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 
 const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
 
-// Define consistent role labels
 const ROLE_LABELS: Record<UserRole, string> = {
   client: 'Client',
   service_provider: 'Service Provider'
@@ -22,6 +22,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 export function RoleSwitcher() {
   const { user, switchRole } = useAuth();
+  const { hasPermission } = usePermissions();
   const router = useRouter();
 
   if (!user?.roles || user.roles.length <= 1) {
@@ -31,9 +32,12 @@ export function RoleSwitcher() {
   const handleRoleSwitch = async (role: UserRole) => {
     if (role !== user.activeRole) {
       await switchRole(role);
-      // Convert role to URL-friendly format
-      const dashboardPath = role === 'service_provider' ? 'service-provider' : role;
-      router.push(`/dashboard/${dashboardPath}`);
+      if (isWebContainer || 
+          (role === 'client' && hasPermission('client:manage_profile')) || 
+          (role === 'service_provider' && hasPermission('provider:manage_profile'))) {
+        const dashboardPath = role === 'service_provider' ? 'service-provider' : role;
+        router.push(`/dashboard/${dashboardPath}`);
+      }
     }
   };
 
