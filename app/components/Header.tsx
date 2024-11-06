@@ -86,7 +86,7 @@ export default function Header() {
 
   return (
     <header className={`sticky-header ${scrolled ? 'scrolled shadow-sm' : ''}`}>
-      <div className="container mx-auto px-4 py-4 relative">
+      <div className="container mx-auto py-4 relative">
         {/* Mobile Layout */}
         <div className="flex items-center justify-between lg:hidden">
           <Sheet>
@@ -106,7 +106,7 @@ export default function Header() {
           <Link href={getDashboardPath()}>
             <button 
               onClick={handleLogoClick}
-              className="text-2xl font-bold absolute left-1/2 -translate-x-1/2"
+              className="text-2xl font-bold"
             >
               WHATEVER™
             </button>

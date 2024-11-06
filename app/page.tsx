@@ -6,8 +6,8 @@ import { ArrowRight } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="container mx-auto px-4 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
-      <div className="max-w-3xl text-center space-y-8">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4">
+      <div className="max-w-3xl w-full text-center space-y-8">
         <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
           Welcome to WHATEVER™
         </h1>
@@ -15,7 +15,7 @@ export default function HomePage() {
           Connect with skilled professionals for your home improvement needs
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button asChild size="lg" variant="default">
+          <Button asChild size="lg">
             <Link href="/login">Sign In</Link>
           </Button>
           <Button asChild size="lg" variant="outline">

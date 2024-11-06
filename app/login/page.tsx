@@ -1,148 +1,187 @@
 'use client';
 
-import { useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Icons } from "@/components/icons";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Icons } from "@/components/icons";
+import { LoginButton } from "@/components/auth/login-button";
+import { Loading } from "@/components/ui/loading";
+import { useAuth0 } from "@auth0/auth0-react";
 
 export default function LoginPage() {
-  const { loginWithRedirect, loginWithPopup } = useAuth0();
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { loginWithRedirect, isLoading, isAuthenticated } = useAuth0();
+  
+  const emailParam = searchParams.get('email');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+    if (emailParam) {
+      setEmailInput(emailParam);
+      setShowPassword(true);
+    }
+  }, [isAuthenticated, router, emailParam]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!emailInput) {
+      toast.error("Please enter an email address");
+      return;
+    }
+    setShowPassword(true);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) {
+      toast.error("Please enter your password");
+      return;
+    }
+
     setLoading(true);
-    
     try {
       await loginWithRedirect({
         authorizationParams: {
-          screen_hint: "login",
-          login_hint: email,
-          prompt: "login",
+          connection: 'Username-Password-Authentication',
+          login_hint: emailInput,
         },
         appState: {
-          returnTo: "/onboarding",
-        },
+          returnTo: '/api/auth/callback'
+        }
       });
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please try again.");
+      toast.error("Unable to log in. Please try again.");
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = async (connection: string) => {
+  const handleSocialLogin = async (provider: 'google' | 'apple') => {
     try {
-      setLoading(true);
-      await loginWithPopup({
+      await loginWithRedirect({
         authorizationParams: {
-          connection,
-          prompt: "select_account",
+          connection: provider === 'google' ? 'google-oauth2' : 'apple',
+          redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
+          screen_hint: 'login',
         },
         appState: {
-          returnTo: "/onboarding",
-        },
+          returnTo: '/dashboard'
+        }
       });
     } catch (error) {
-      console.error("Social login error:", error);
-      toast.error("Login failed. Please try again.");
-      setLoading(false);
+      console.error(`${provider} login error:`, error);
+      toast.error(`Unable to login with ${provider}. Please try again.`);
     }
   };
 
+  if (isLoading) {
+    return <Loading />;
+  }
+
   return (
-    <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <Link
-        href="/"
-        className="absolute left-4 top-4 md:left-8 md:top-8 flex items-center text-sm font-medium text-muted-foreground"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
+    <div className="container max-w-md mx-auto min-h-[calc(100vh-4rem)] p-4">
+      <Link href="/">
+        <Button variant="ghost" size="sm" className="mb-4">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
       </Link>
 
-      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-        <div className="absolute inset-0 bg-zinc-900" />
-        <div className="relative z-20 flex items-center text-lg font-medium">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2 h-6 w-6"
-          >
-            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-          </svg>
-          WHATEVER™
+      <div className="flex flex-col justify-center min-h-[calc(100vh-10rem)]">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">Log in to WHATEVER™</h1>
         </div>
-      </div>
 
-      <div className="lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-          <div className="flex flex-col space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">
-              Sign in to your account
-            </p>
+        {!showPassword ? (
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                required
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              size="lg"
+            >
+              Continue
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Log In"
+              )}
+            </Button>
+          </form>
+        )}
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
           </div>
-
-          <div className="grid gap-6">
-            <div className="grid gap-2">
-              <form onSubmit={handleEmailSubmit}>
-                <Input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Button type="submit" className="w-full mt-2" disabled={loading}>
-                  {loading ? (
-                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    "Continue with Email"
-                  )}
-                </Button>
-              </form>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleSocialLogin('google-oauth2')}
-                disabled={loading}
-              >
-                <Icons.google className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleSocialLogin('apple')}
-                disabled={loading}
-              >
-                <Icons.apple className="mr-2 h-4 w-4" />
-                Apple
-              </Button>
-            </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              or
+            </span>
           </div>
+        </div>
+
+        <div className="space-y-3">
+          <LoginButton 
+            provider="google"
+            variant="outline"
+            size="lg"
+            onClick={() => handleSocialLogin('google')}
+            className="w-full"
+          />
+          
+          <LoginButton 
+            provider="apple"
+            variant="outline"
+            size="lg"
+            onClick={() => handleSocialLogin('apple')}
+            className="w-full"
+          />
+        </div>
+
+        <div className="text-center text-sm text-muted-foreground mt-6">
+          Don't have an account?{' '}
+          <Link href="/register" className="text-primary hover:underline">
+            Sign Up
+          </Link>
         </div>
       </div>
     </div>

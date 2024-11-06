@@ -1,7 +1,6 @@
-import { UserProvider } from '@auth0/nextjs-auth0/client';
+import { metadata, viewport } from './metadata';
 import { ClientRoot } from './client-root';
 import './globals.css';
-import { metadata, viewport } from './metadata';
 
 export { metadata, viewport };
 
@@ -22,12 +21,10 @@ export default function RootLayout({
         data-sentry-release={process.env.NEXT_PUBLIC_SENTRY_RELEASE}
         data-sentry-environment={process.env.NEXT_PUBLIC_ENV}
       >
-        <UserProvider>
-          <ClientRoot>
-            {children}
-          </ClientRoot>
-        </UserProvider>
+        <ClientRoot>
+          {children}
+        </ClientRoot>
       </body>
     </html>
   );
-}
+} 

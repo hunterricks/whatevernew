@@ -1,21 +1,41 @@
+"use client";
+
 import { Auth0Client } from "@auth0/auth0-spa-js";
 
-export const auth0Client = new Auth0Client({
-  domain: process.env.NEXT_PUBLIC_AUTH0_DOMAIN!,
-  clientId: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID!,
-  authorizationParams: {
-    redirect_uri: window.location.origin,
-    audience: `https://${process.env.NEXT_PUBLIC_AUTH0_DOMAIN}/api/v2/`,
-    scope: 'openid profile email offline_access',
-  },
-  useRefreshTokens: true,
-  cacheLocation: "localstorage",
-  tokenRefreshThreshold: 60, // Refresh token 60 seconds before expiry
-});
+let auth0Client: Auth0Client | null = null;
+
+export const getAuth0Client = () => {
+  if (typeof window === 'undefined') return null;
+  
+  if (!auth0Client) {
+    const domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN;
+    const clientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    
+    if (!domain || !clientId) {
+      console.error('Missing Auth0 configuration');
+      return null;
+    }
+
+    auth0Client = new Auth0Client({
+      domain,
+      clientId,
+      authorizationParams: {
+        redirect_uri: `${baseUrl}/api/auth/callback`,
+        audience: `https://${domain}/api/v2/`,
+        scope: 'openid profile email offline_access',
+      },
+      useRefreshTokens: true,
+      cacheLocation: "localstorage"
+    });
+  }
+  
+  return auth0Client;
+};
 
 export const loginWithRedirect = async (email: string, options = {}) => {
   try {
-    await auth0Client.loginWithRedirect({
+    await getAuth0Client().loginWithRedirect({
       ...options,
       authorizationParams: {
         ...options.authorizationParams,
@@ -31,7 +51,7 @@ export const loginWithRedirect = async (email: string, options = {}) => {
 
 export const getValidToken = async () => {
   try {
-    const token = await auth0Client.getTokenSilently({
+    const token = await getAuth0Client().getTokenSilently({
       detailedResponse: true,
       timeoutInSeconds: 60,
     });
@@ -40,7 +60,7 @@ export const getValidToken = async () => {
   } catch (error) {
     console.error('Token refresh error:', error);
     // Redirect to login if refresh fails
-    await auth0Client.loginWithRedirect();
+    await loginWithRedirect(undefined);
     return null;
   }
 };

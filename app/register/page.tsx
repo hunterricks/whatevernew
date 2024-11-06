@@ -18,15 +18,15 @@ export default function Register() {
   }, [user, router]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] py-12 px-4">
+      <div className="max-w-2xl w-full space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Join WHATEVER™</h1>
           <p className="text-muted-foreground">Choose how you want to use the platform</p>
         </div>
 
-        <div className="grid gap-4">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group" onClick={() => router.push('/register/client')}>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/register/client')}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
@@ -40,7 +40,7 @@ export default function Register() {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group" onClick={() => router.push('/register/service-provider')}>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/register/service-provider')}>
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">

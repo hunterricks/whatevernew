@@ -1,163 +1,85 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
-import { OAuth2Client } from 'google-auth-library';
+import { NextRequest, NextResponse } from 'next/server';
+import { ManagementClient } from 'auth0';
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
-    const data = await request.json();
-    const { provider, token, role } = data;
+    const body = await request.json();
+    console.log('Signup Request Body:', body);
 
-    if (!['client', 'service_provider'].includes(role)) {
-      return new Response(
-        JSON.stringify({ message: 'Invalid role specified' }), 
-        { status: 400 }
-      );
-    }
-
-    // Handle OAuth signup
-    if (provider) {
-      switch (provider) {
-        case 'google': {
-          const ticket = await googleClient.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID
-          });
-          const payload = ticket.getPayload();
-          if (!payload) throw new Error('Invalid Google token');
-
-          const { email, given_name, family_name } = payload;
-          
-          // Check if user exists
-          let user = await User.findOne({ email });
-          
-          if (!user) {
-            // Create new user from Google data
-            user = await User.create({
-              firstName: given_name,
-              lastName: family_name,
-              name: `${given_name} ${family_name}`,
-              email,
-              password: '', // No password for OAuth users
-              role,
-              provider: 'google',
-              onboardingCompleted: false,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            });
-          }
-
-          // Generate JWT
-          const token = jwt.sign(
-            { userId: user._id, email: user.email, role: user.role },
-            process.env.JWT_SECRET!,
-            { expiresIn: '1d' }
-          );
-
-          const response = NextResponse.json({
-            message: 'User authenticated successfully',
-            userId: user._id,
-            role: user.role,
-            redirectUrl: role === 'client' 
-              ? '/client/onboarding' 
-              : '/service-provider/onboarding'
-          });
-
-          response.cookies.set('auth-token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV !== 'development',
-            sameSite: 'strict',
-            maxAge: 86400,
-            path: '/',
-          });
-
-          return response;
-        }
-
-        case 'apple': {
-          // Implement Apple Sign-in verification
-          // Similar structure to Google but with Apple-specific verification
-          break;
-        }
-
-        default:
-          return NextResponse.json(
-            { error: 'Unsupported OAuth provider' },
-            { status: 400 }
-          );
-      }
-    }
-
-    // Handle email/password signup
-    const { firstName, lastName, email, password, country, emailUpdates } = data;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    // Create new user
-    const user = await User.create({
-      firstName,
-      lastName,
-      name: `${firstName} ${lastName}`,
-      email,
-      password: hashedPassword,
-      role,
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      password, 
       country,
-      emailUpdates,
-      provider: 'email',
-      onboardingCompleted: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      role = 'client'
+    } = body;
+
+    const domain = process.env.AUTH0_ISSUER_BASE_URL?.replace('https://', '').trim();
+    const clientId = process.env.AUTH0_CLIENT_ID;
+    
+    // Create Auth0 Management Client
+    const management = new ManagementClient({
+      domain: domain!,
+      clientId: process.env.AUTH0_CLIENT_ID!,
+      clientSecret: process.env.AUTH0_CLIENT_SECRET!,
     });
 
-    // Generate JWT
-    const jwtToken = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: '1d' }
-    );
-
-    // Create response with cookie
-    const response = NextResponse.json({
-      message: 'User created successfully',
-      userId: user._id,
-      role: user.role,
-      redirectUrl: role === 'client' 
-        ? '/client/onboarding' 
-        : '/service-provider/onboarding'
+    // Create user with Auth0
+    const signupResponse = await fetch(`https://${domain}/dbconnections/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        connection: 'Username-Password-Authentication',
+        email: email.toLowerCase().trim(),
+        password,
+        name: `${firstName} ${lastName}`.trim(),
+        given_name: firstName.trim(),
+        family_name: lastName.trim(),
+        user_metadata: {
+          country: country?.trim()
+        }
+      })
     });
 
-    // Set auth cookie
-    response.cookies.set('auth-token', jwtToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'strict',
-      maxAge: 86400, // 1 day
-      path: '/',
-    });
+    if (!signupResponse.ok) {
+      const errorText = await signupResponse.text();
+      console.error('Auth0 Signup Error:', errorText);
+      return NextResponse.json({ error: 'Failed to create account' }, { status: signupResponse.status });
+    }
 
-    return response;
+    // Get user by email and update roles
+    try {
+      const users = await management.users.getByEmail(email.toLowerCase().trim());
+      console.log('Found users:', users);
+
+      if (users && users.length > 0) {
+        const userId = users[0].user_id;
+        await management.users.update({ id: userId }, {
+          app_metadata: { roles: [role] }
+        });
+        console.log('Updated roles for user:', userId, 'with role:', role);
+      }
+    } catch (roleError) {
+      console.error('Error updating roles:', roleError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      credentials: {
+        email: email.toLowerCase().trim(),
+        password
+      },
+      redirect_url: role === 'service_provider' ? '/dashboard/service-provider' : '/dashboard/client'
+    });
 
   } catch (error) {
     console.error('Signup error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return NextResponse.json(
-      { error: 'Error creating user', details: errorMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

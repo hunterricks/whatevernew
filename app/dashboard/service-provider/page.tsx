@@ -13,7 +13,7 @@ const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
 
 export default function ServiceProviderDashboard() {
   const router = useRouter();
-  const { user, checkAuth } = useAuth();
+  const { user, checkAuth, isLoading } = useAuth();
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -24,7 +24,17 @@ export default function ServiceProviderDashboard() {
     if (!isWebContainer && user?.activeRole !== 'service_provider') {
       router.push('/dashboard/client');
     }
-  }, [user?.activeRole, router, checkAuth]);
+
+    if (!isLoading && user) {
+      const userRole = user['https://whatever.com/roles']?.[0] || 
+                      user['https://whatever.com/app_metadata']?.roles?.[0];
+      
+      if (userRole !== 'service_provider') {
+        console.log('Invalid role access:', userRole); // Debug log
+        router.push('/dashboard/client');
+      }
+    }
+  }, [user?.activeRole, router, checkAuth, isLoading]);
 
   if (!user || (!isWebContainer && user.activeRole !== 'service_provider')) {
     return null;

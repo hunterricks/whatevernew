@@ -11,6 +11,7 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/lib/auth";
+import { Loading } from "@/components/ui/loading";
 
 const isWebContainer = process.env.NEXT_PUBLIC_ENV_MODE === 'webcontainer';
 
@@ -58,9 +59,7 @@ export default function Profile() {
   if (auth0Loading && !isWebContainer) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
+        <Loading />
       </div>
     );
   }

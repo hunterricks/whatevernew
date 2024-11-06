@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getAuth0Client } from "@/lib/auth/auth0-client";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -52,28 +53,37 @@ export default function ServiceProviderRegisterPage() {
     },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const handleSubmit = async (values: FormData) => {
     setIsSubmitting(true);
+    
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          ...data,
-          name: `${data.firstName} ${data.lastName}`,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          password: values.password,
+          country: values.country,
           role: 'service_provider',
-        }),
+          emailUpdates: values.emailUpdates,
+          termsAccepted: values.termsAccepted
+        })
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
-      }
+      const data = await response.json();
 
-      toast.success("Account created successfully!");
-      router.push('/service-provider/onboarding');
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
+      if (data.success) {
+        router.push('/login?email=' + encodeURIComponent(data.credentials.email));
+      } else {
+        toast.error(data.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error('Failed to register. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -124,7 +134,7 @@ export default function ServiceProviderRegisterPage() {
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">First name</label>

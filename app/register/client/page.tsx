@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getAuth0Client } from '@/lib/auth/auth0-client';
 
 const formSchema = z.object({
   firstName: z.string().min(2, "First name is required"),
@@ -52,28 +53,76 @@ export default function ClientRegisterPage() {
     },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const handleSubmit = async (values: FormData) => {
     setIsSubmitting(true);
+    
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          ...data,
-          name: `${data.firstName} ${data.lastName}`,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          password: values.password,
+          country: values.country,
           role: 'client',
-        }),
+          emailUpdates: values.emailUpdates,
+          termsAccepted: values.termsAccepted
+        })
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
-      }
+      const data = await response.json();
 
-      toast.success("Account created successfully!");
-      router.push('/client/onboarding');
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
+      if (data.success && data.credentials) {
+        // Try direct token exchange instead of Auth0 redirect
+        const tokenResponse = await fetch(`${process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL}/oauth/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            grant_type: 'password',
+            username: data.credentials.email,
+            password: data.credentials.password,
+            client_id: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID,
+            client_secret: process.env.AUTH0_CLIENT_SECRET,
+            audience: `${process.env.NEXT_PUBLIC_AUTH0_ISSUER_BASE_URL}/api/v2/`,
+            scope: 'openid profile email'
+          })
+        });
+
+        if (tokenResponse.ok) {
+          const tokens = await tokenResponse.json();
+          localStorage.setItem('access_token', tokens.access_token);
+          if (tokens.id_token) {
+            localStorage.setItem('id_token', tokens.id_token);
+          }
+          router.push(data.redirect_url);
+        } else {
+          // Only fallback to Auth0 redirect if token exchange fails
+          const auth0 = getAuth0Client();
+          if (!auth0) {
+            throw new Error('Auth0 client not initialized');
+          }
+          await auth0.loginWithRedirect({
+            authorizationParams: {
+              login_hint: data.credentials.email,
+              prompt: 'none', // Try to skip the login screen
+            },
+            appState: {
+              returnTo: data.redirect_url
+            }
+          });
+        }
+      } else {
+        toast.error(data.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error('Failed to register. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -124,7 +173,7 @@ export default function ClientRegisterPage() {
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">First name</label>
